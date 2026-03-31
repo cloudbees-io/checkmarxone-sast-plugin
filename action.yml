@@ -1,0 +1,93 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: action
+name: checkmarxone-sast-plugin
+inputs:
+  url:
+    description: 'CheckmarxOne base URL' 
+    required: true
+  tenant:
+    description: 'CheckmarxOne tenant name'
+    required: true
+  api-key:
+    description: 'CheckmarxOne API key for authentication'
+    required: true   
+  ref:
+    description: 'Flag to indicate the ref that should be archived (same as supplied to checkout)'
+    required: false
+    default: ''
+  workspace-dir:
+    description: 'Flag to mention the path where the checked out code will be present'
+    required: false
+    default: ''
+outputs:
+  critical-count:
+    description: A string containing the number of Critical security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.critical-count}}
+  very-high-count:
+    description: A string containing the number of Very High security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.very-high-count}}
+  high-count:
+    description: A string containing the number of High security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.high-count}}
+  medium-count:
+    description: A string containing the number of Medium security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.medium-count}}
+  low-count:
+    description: A string containing the number of Low security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.low-count}}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate sha and ref
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
+      with:
+        entrypoint: assets-plugin-chain-utils
+        args: get-commit-info
+      env:
+        INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+        INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+        INPUT_RUN_ID: ${{ cloudbees.run_id }}
+        INPUT_CLOUDBEES_EVENT_PATH: /cloudbees/event.json
+        INPUT_REF: ${{ inputs.ref }}
+        INPUT_WORKSPACE_DIR: ${{ inputs.workspace-dir }}
+
+    - name: Generate reference files
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
+      with:
+        entrypoint: assets-plugin-chain-utils
+        args: generate-references --asset-type "CODE"
+      env:
+        INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+        INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+        INPUT_RUN_ID: ${{ cloudbees.run_id }}
+
+    - name: Run SCC Scan for tag generation
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-scc-scanner:884fecd572bb127890a823acc378f1951e72314a
+      continue-on-error: true
+      env:
+        RUN_ID: ${{ cloudbees.run_id }}
+        JOB_ID: ${{ job.id }}
+        STEP_ID: ${{ step.internal.id }}
+      run: /app/plugin-scc-scanner -mode single
+
+    - name: Run Checkmarx One SAST plugin
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-checkmarxone-sast-scanner:0eb1ca83f85f014381ed2501d0d6582ea343eab2
+      env:
+        CHECKMARXONE_SAST_PROPS: '{"baseURL": "${{ inputs.url }}", "tenant": "${{ inputs.tenant }}", "apiKey": "${{ inputs.api-key }}"}'
+        RUN_ID: ${{ cloudbees.run_id }}
+        JOB_ID: ${{ job.id }}
+        STEP_ID: ${{ step.internal.id }}
+
+      run: /app/plugin-checkmarxone-sast-scanner -mode single
+
+    - name: Complete execution plan
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
+      id: process-outputs
+      with:
+        entrypoint: assets-plugin-chain-utils
+        args: process-outputs
+      env:
+        INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+        INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+        INPUT_RUN_ID: ${{ cloudbees.run_id }}
