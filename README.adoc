@@ -3,16 +3,16 @@
 Use this action to scan application source code for security vulnerabilities with the Checkmarx One SAST scanner.
 You can also use the action output as a quality gate for the next step or job in your workflow.
 
-Checkmarx One SAST is a powerful Static Application Security Testing solution that analyzes your source code to identify and remediate security vulnerabilities throughout the software development lifecycle.
+Checkmarx One SAST is a Static Application Security Testing solution that scans your source code for security vulnerabilities without requiring compilation or building.
 
 Add a Checkmarx One SAST scan to your workflows in CloudBees platform to:
 
 * Detect security vulnerabilities in your application source code.
 * Identify code security issues across multiple programming languages including Java, C#, Python, JavaScript, TypeScript, Go, PHP, Ruby, and more.
+* Filter scan results by severity level to focus on critical issues.
 * Gain insight into security risks with detailed vulnerability information and remediation guidance.
 * Ensure compliance with security best practices and industry standards.
 * Shift security left by catching issues early in the development lifecycle.
-* Track and manage vulnerabilities through the Checkmarx One platform.
 
 CloudBees platform enables you to run a Checkmarx One SAST scan either implicitly or explicitly.
 
@@ -28,27 +28,20 @@ To set up implicit scanning, refer to link:https://docs.cloudbees.com/docs/cloud
 The Checkmarx One SAST scanner architectural components are:
 
 * Checkmarx One Platform: Cloud-based platform for centralized vulnerability management and reporting.
-* Checkmarx SAST Engine: Advanced static analysis engine that performs deep code analysis.
+* Checkmarx SAST Engine: Static analysis engine that analyzes source code structure and data flows.
 * Checkmarx API: Provides programmatic access for initiating scans and retrieving results.
 
 The scanning process is as follows:
 
 . The Checkmarx One SAST scanner identifies source code files in your repository.
-. Source code is analyzed using advanced static analysis techniques to detect security vulnerabilities.
+. Source code is analyzed using static analysis techniques to detect security vulnerabilities.
 . Security issues are identified based on Checkmarx's comprehensive knowledge base of vulnerability patterns.
+. If a severity filter is specified, results are filtered to include only matching severity levels.
 . Results are reported with severity levels (Critical, Very High, High, Medium, Low), detailed descriptions, and remediation guidance.
 . The scan results are uploaded to the Checkmarx One platform for centralized tracking and management.
 . Results are made available as actionable outputs for quality gates and downstream workflow steps.
 
-NOTE: For more information about Checkmarx One SAST, refer to the link:https://docs.checkmarx.com/en/34965-68517-checkmarx-one-user-guide.html [Checkmarx One User Guide]
-
-== Prerequisites
-
-Before using this action, ensure you have:
-
-* A Checkmarx One account with appropriate access permissions.
-* Checkmarx One API key with sufficient privileges to perform scans.
-* Your Checkmarx One tenant name and base URL.
+NOTE: For more information about the Checkmarx One SAST scanner, refer to the link:https://docs.checkmarx.com/en/34965-68517-checkmarx-one-user-guide.html[Checkmarx One documentation].
 
 == Inputs
 
@@ -61,7 +54,7 @@ Before using this action, ensure you have:
 | Required?
 | Description
 
-| `baseURL`
+| `url`
 | String
 | Yes
 | The Checkmarx One base URL (e.g., https://ast.checkmarx.net).
@@ -75,6 +68,11 @@ Before using this action, ensure you have:
 | String
 | Yes
 | The Checkmarx One API key for authentication.
+
+| `severity`
+| String
+| No
+| Filter SAST results by severity. Comma-separated values: critical, high, medium, low, info. Leave empty to include all.
 
 | `ref`
 | String
@@ -128,7 +126,6 @@ The following is a basic usage example for this action:
 
 [source,yaml]
 ----
-
       - name: Scan with Checkmarx One SAST
         uses: cloudbees-io/checkmarxone-sast-plugin@v1
         with:
@@ -143,9 +140,8 @@ The following is a basic usage example for this action:
 
 The following CloudBees platform workflow example scans a Java application with Checkmarx One SAST.
 
-[source, yaml,role="default-expanded"]
+[source,yaml,role="default-expanded"]
 ----
-
 name: checkmarxone-sast-scan
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -180,9 +176,8 @@ jobs:
 
 The following CloudBees platform workflow example scans a Python application with Checkmarx One SAST.
 
-[source, yaml,role="default-expanded"]
+[source,yaml,role="default-expanded"]
 ----
-
 name: checkmarxone-sast-scan
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -217,9 +212,8 @@ jobs:
 
 The following CloudBees platform workflow example scans a JavaScript application with Checkmarx One SAST.
 
-[source, yaml,role="default-expanded"]
+[source,yaml,role="default-expanded"]
 ----
-
 name: checkmarxone-sast-scan
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -250,6 +244,43 @@ jobs:
 
 ----
 
+=== Filter scan results by severity
+
+The following CloudBees platform workflow example scans code and filters results to show only critical and high severity findings.
+
+[source,yaml,role="default-expanded"]
+----
+name: checkmarxone-sast-scan-filtered
+kind: workflow
+apiVersion: automation.cloudbees.io/v1alpha1
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  scm-token-own: read
+  scm-token-org: read
+  id-token: write
+
+jobs:
+  checkmarxone-sast-scan:
+    steps:
+      - name: Check out source code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Checkmarx One SAST scan with severity filter
+        uses: cloudbees-io/checkmarxone-sast-plugin@v1
+        with:
+          api-key: ${{ secrets.CHECKMARXONE_API_KEY }}
+          url: ${{ vars.CHECKMARXONE_BASE_URL }}
+          tenant: ${{ vars.CHECKMARXONE_TENANT }}
+          ref: main
+          severity: critical,high
+
+----
+
 === Using the action output
 
 Access the output values in downstream steps and jobs using the `outputs` link:https://docs.cloudbees.com/docs/cloudbees-platform/latest/dsl-syntax/contexts[context].
@@ -265,7 +296,6 @@ The following example uses the action output in a downstream step of the same jo
 
 [source,yaml,role="default-expanded"]
 ----
-
 name: my-workflow
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -305,7 +335,7 @@ jobs:
         name: print outputs from upstream checkmarxone sast step
         uses: docker://alpine:latest
         run: |
-            #printing all outputs
+            # Printing all outputs
             echo "Outputs from upstream Checkmarx One SAST step:"
             echo "Critical count: ${{steps.checkmarxone-sast-step.outputs.critical-count}}"
             echo "Very high count: ${{steps.checkmarxone-sast-step.outputs.very-high-count}}"
@@ -313,14 +343,12 @@ jobs:
             echo "Medium count: ${{steps.checkmarxone-sast-step.outputs.medium-count}}"
             echo "Low count: ${{steps.checkmarxone-sast-step.outputs.low-count}}"
 
-
 ----
 
 The following example uses the action output in a downstream job:
 
 [source,yaml,role="default-expanded"]
 ----
-
 name: my-workflow
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -386,3 +414,4 @@ link:https://opensource.org/license/mit/[MIT license].
 
 * Learn more about link:https://docs.cloudbees.com/docs/cloudbees-platform/latest/actions[using actions in CloudBees workflows].
 * Learn about link:https://docs.cloudbees.com/docs/cloudbees-platform/latest/[CloudBees platform].
+* Learn about link:https://docs.checkmarx.com/en/34965-322308-checkmarx-one-scanners.html[Checkmarx One SAST].

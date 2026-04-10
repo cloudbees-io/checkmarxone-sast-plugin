@@ -10,7 +10,10 @@ inputs:
     required: true
   api-key:
     description: 'CheckmarxOne API key for authentication'
-    required: true   
+    required: true
+  severity:
+    description: 'Filter SAST results by severity. Comma-separated values: critical, high, medium, low, info. Leave empty to include all.'
+    required: false
   ref:
     description: 'Flag to indicate the ref that should be archived (same as supplied to checkout)'
     required: false
@@ -72,14 +75,31 @@ runs:
       run: /app/plugin-scc-scanner -mode single
 
     - name: Run Checkmarx One SAST plugin
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-checkmarxone-sast-scanner:0eb1ca83f85f014381ed2501d0d6582ea343eab2
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-checkmarxone-sast-scanner:cacd851159d01128b1ee8af3ec0e4d1b1b193489
       env:
-        CHECKMARXONE_SAST_PROPS: '{"baseURL": "${{ inputs.url }}", "tenant": "${{ inputs.tenant }}", "apiKey": "${{ inputs.api-key }}"}'
         RUN_ID: ${{ cloudbees.run_id }}
         JOB_ID: ${{ job.id }}
         STEP_ID: ${{ step.internal.id }}
-
-      run: /app/plugin-checkmarxone-sast-scanner -mode single
+      run: |
+        if [ -z "${{ inputs.severity }}" ]; then
+          SEVERITY_FILTER="[]"
+        else
+          SEVERITY_FILTER="["
+          SEVERITIES=$(echo "${{ inputs.severity }}" | tr ',' '\n')
+          FIRST=true
+          for severity in $SEVERITIES; do
+            TRIMMED=$(echo "$severity" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ "$FIRST" = "true" ]; then
+              SEVERITY_FILTER="$SEVERITY_FILTER\"$TRIMMED\""
+              FIRST=false
+            else
+              SEVERITY_FILTER="$SEVERITY_FILTER,\"$TRIMMED\""
+            fi
+          done
+          SEVERITY_FILTER="$SEVERITY_FILTER]"
+        fi
+        export CHECKMARXONE_SAST_PROPS="{\"baseURL\": \"${{ inputs.url }}\", \"tenant\": \"${{ inputs.tenant }}\", \"apiKey\": \"${{ inputs.api-key }}\", \"severity\": $SEVERITY_FILTER}"
+        /app/plugin-checkmarxone-sast-scanner -mode single
 
     - name: Complete execution plan
       uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
