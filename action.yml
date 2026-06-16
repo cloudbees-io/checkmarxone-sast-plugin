@@ -38,12 +38,16 @@ outputs:
   low-count:
     description: A string containing the number of Low security findings discovered during the scan.
     value: ${{steps.process-outputs.outputs.low-count}}
+  policy-subject:
+    description: A json value containing the details about the vulnerability scan summary & details.
+    value: ${{steps.process-outputs.outputs.policy-subject}}
+  
 
 runs:
   using: composite
   steps:
     - name: Generate sha and ref
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:eda1f86aa17218e8779fae9ff1ac9161b708d07e
       with:
         entrypoint: assets-plugin-chain-utils
         args: get-commit-info
@@ -56,7 +60,7 @@ runs:
         INPUT_WORKSPACE_DIR: ${{ inputs.workspace-dir }}
 
     - name: Generate reference files
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:eda1f86aa17218e8779fae9ff1ac9161b708d07e
       with:
         entrypoint: assets-plugin-chain-utils
         args: generate-references --asset-type "CODE"
@@ -76,6 +80,7 @@ runs:
 
     - name: Run Checkmarx One SAST plugin
       uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-checkmarxone-sast-scanner:cacd851159d01128b1ee8af3ec0e4d1b1b193489
+      continue-on-error: true
       env:
         RUN_ID: ${{ cloudbees.run_id }}
         JOB_ID: ${{ job.id }}
@@ -102,7 +107,7 @@ runs:
         /app/plugin-checkmarxone-sast-scanner -mode single
 
     - name: Complete execution plan
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:81b0453072476e33ca097de87ba13c5127b45f74
+      uses: docker://020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/assets-plugin-chain-utils:b3e498d665c5fbd6eb4250cafcf849c03d3ad538
       id: process-outputs
       with:
         entrypoint: assets-plugin-chain-utils
@@ -111,3 +116,4 @@ runs:
         INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
         INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
         INPUT_RUN_ID: ${{ cloudbees.run_id }}
+        INPUT_WORKSPACE_DIR: ${{ inputs.workspace-dir }}
