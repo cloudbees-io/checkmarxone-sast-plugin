@@ -47,7 +47,7 @@ runs:
   using: composite
   steps:
     - name: Generate sha and ref
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:c50ec2fe6005734938af4ea358e35c7cc68f565f
+      uses: docker://020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/assets-plugin-chain-utils:c50ec2fe6005734938af4ea358e35c7cc68f565f
       with:
         entrypoint: assets-plugin-chain-utils
         args: get-commit-info
@@ -60,7 +60,7 @@ runs:
         INPUT_WORKSPACE_DIR: ${{ inputs.workspace-dir }}
 
     - name: Generate reference files
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:c50ec2fe6005734938af4ea358e35c7cc68f565f
+      uses: docker://020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/assets-plugin-chain-utils:c50ec2fe6005734938af4ea358e35c7cc68f565f
       with:
         entrypoint: assets-plugin-chain-utils
         args: generate-references --asset-type "CODE"
