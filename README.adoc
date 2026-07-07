@@ -116,6 +116,10 @@ NOTE: For more information about the Checkmarx One SAST scanner, refer to the li
 | String
 | The number of *Low* severity issues discovered during the scan.
 
+| `policy-subject`
+| JSON
+| A JSON value containing details about the vulnerability scan summary and details.
+
 |===
 
 == Usage examples
@@ -342,6 +346,7 @@ jobs:
             echo "High count: ${{steps.checkmarxone-sast-step.outputs.high-count}}"
             echo "Medium count: ${{steps.checkmarxone-sast-step.outputs.medium-count}}"
             echo "Low count: ${{steps.checkmarxone-sast-step.outputs.low-count}}"
+            echo "Policy subject: ${{steps.checkmarxone-sast-step.outputs.policy-subject}}"
 
 ----
 
@@ -371,6 +376,7 @@ jobs:
       checkmarxone-sast-job-output-high: ${{ steps.checkmarxone-sast-step.outputs.high-count }}
       checkmarxone-sast-job-output-medium: ${{ steps.checkmarxone-sast-step.outputs.medium-count }}
       checkmarxone-sast-job-output-low: ${{ steps.checkmarxone-sast-step.outputs.low-count }}
+      checkmarxone-sast-job-output-policy-subject: ${{ steps.checkmarxone-sast-step.outputs.policy-subject }}
     steps:
       - name: check out source code
         uses: cloudbees-io/checkout@v1
@@ -402,6 +408,7 @@ jobs:
           echo "High count: ${{ needs.job1.outputs.checkmarxone-sast-job-output-high }}"
           echo "Medium count: ${{ needs.job1.outputs.checkmarxone-sast-job-output-medium }}"
           echo "Low count: ${{ needs.job1.outputs.checkmarxone-sast-job-output-low }}"
+          echo "Policy subject: ${{ needs.job1.outputs.checkmarxone-sast-job-output-policy-subject }}"
 
 ----
 
